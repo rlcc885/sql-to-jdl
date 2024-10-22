@@ -11,9 +11,11 @@ import java.nio.file.StandardOpenOption;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.blackdread.sqltojava.config.ApplicationProperties;
 import org.blackdread.sqltojava.config.ExportFileStructureType;
 import org.blackdread.sqltojava.entity.JdlEntity;
+import org.blackdread.sqltojava.entity.impl.JdlRelationGroupImpl;
 import org.blackdread.sqltojava.exporter.ExportFileStructureConfig;
 import org.blackdread.sqltojava.util.JdlUtils;
 import org.slf4j.Logger;
@@ -77,7 +79,11 @@ public class ExportService {
                 entry("views", views),
                 entry("viewsrelations", jdlService.getRelations(views)),
                 entry("options", !properties.isRenderEntitiesOnly() ? JdlUtils.getOptions() : Collections.emptyList())
-            );
+            )
+                .entrySet()
+                .stream()
+                .filter(e -> hasItems(e.getValue())) // Filter out entries with empty lists
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         } else if (
             ExportFileStructureType.RELATIONS_BEFORE_VIEWS_SEPARATE_VIEWS.equals(exportFileStructureConfig.getExportFileStructureType())
         ) {
@@ -95,6 +101,13 @@ public class ExportService {
             );
         }
         throw new IllegalStateException("Unknown export file structure type");
+    }
+
+    private static boolean hasItems(Object object) {
+        if (object instanceof JdlRelationGroupImpl && ((JdlRelationGroupImpl) object).getRelations().isEmpty()) {
+            return false;
+        }
+        return true;
     }
 
     private static List<JdlEntity> extractViews(List<JdlEntity> entities) {
